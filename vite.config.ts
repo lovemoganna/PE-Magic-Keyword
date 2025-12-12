@@ -3,13 +3,17 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/PE-Magic-Keyword/', // 你的仓库名
+  base: '/PE-Magic-Keyword/',
   build: {
     outDir: 'dist',
-    assetsDir: 'assets'
+    assetsDir: 'assets',
+    sourcemap: true, // 添加源码映射便于调试
+  },
+  server: {
+    port: 3000,
   },
   define: {
-    // 确保环境变量能在客户端访问
-    'process.env.VITE_GEMINI_API_KEY': JSON.stringify(process.env.VITE_GEMINI_API_KEY)
+    // 确保环境变量正确传递
+    'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(process.env.VITE_GEMINI_API_KEY || ''),
   }
 })
