@@ -46,6 +46,82 @@ const KeywordForm: React.FC<KeywordFormProps> = ({ initialData, onSubmit, onCanc
         setFormData(prev => ({ ...prev, [field]: prev[field].filter((_, i) => i !== index) }));
     };
 
+    // --- AI Auto-Generation Logic ---
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    // Dynamically import GoogleGenAI to ensure environment variables are ready
+    const generateWithAI = async () => {
+        if (!formData.term.trim()) {
+            alert("请先输入关键词名称 (Term)");
+            return;
+        }
+
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) {
+            alert("未配置 VITE_GEMINI_API_KEY，无法使用 AI 功能");
+            return;
+        }
+
+        setIsGenerating(true);
+        try {
+            const { GoogleGenAI } = await import("@google/genai");
+            const client = new GoogleGenAI({ apiKey });
+            // Using a structured prompt to get JSON
+            const prompt = `
+            You are an expert knowledge curator. 
+            I have a keyword: "${formData.term}".
+            Please generate a JSON object for this keyword with the following structure matching my TypeScript interface:
+            {
+                "term": "${formData.term}",
+                "category": "String (one of: 'core-catalysts', 'mental-models', 'cognitive-biases', 'metacognition', 'learning-sciences')",
+                "depth": "String (one of: 'foundational', 'strategic', 'philosophical')",
+                "description": "String (Concise, profound definition, max 150 chars)",
+                "examples": ["String", "String", "String"] (3 concrete examples),
+                "related": ["String", "String", "String"] (3 related concepts),
+                "cognitiveImpact": "String (How it upgrades thinking)",
+                "crossDomains": ["String", "String"] (2 fields like 'Business', 'Physics')
+            }
+            Return ONLY the valid JSON string, no markdown formatting.
+            `;
+
+            // Using 'gemini-1.5-flash' as it is standard. 'gemini-2.5-flash' might be invalid.
+            const response = await client.models.generateContent({
+                model: 'gemini-1.5-flash',
+                contents: prompt
+            });
+
+            // In @google/genai v1, text is likely a getter.
+            const responseText = response.text;
+
+            if (!responseText) {
+                throw new Error("Empty response from AI");
+            }
+
+            // Clean up markdown code blocks if present (Gemini often wraps in ```json ... ```)
+            const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+            const data = JSON.parse(cleanJson);
+
+            // validate/map fields to ensure safety
+            setFormData(prev => ({
+                ...prev,
+                category: data.category || 'core-catalysts',
+                depth: data.depth || 'foundational',
+                description: data.description || '',
+                examples: Array.isArray(data.examples) ? data.examples : [''],
+                related: Array.isArray(data.related) ? data.related : [''],
+                cognitiveImpact: data.cognitiveImpact || '',
+                crossDomains: Array.isArray(data.crossDomains) ? data.crossDomains : ['']
+            }));
+
+        } catch (error) {
+            console.error("AI Generation failed:", error);
+            alert("AI 生成失败，请重试。\n" + (error instanceof Error ? error.message : String(error)));
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+    // --------------------------------
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         onSubmit(formData);
@@ -61,15 +137,39 @@ const KeywordForm: React.FC<KeywordFormProps> = ({ initialData, onSubmit, onCanc
                 <div className="space-y-6">
                     <div>
                         <label className={labelClass}>关键词名称 (Term)</label>
-                        <input
-                            type="text"
-                            required
-                            placeholder="例如：第一性原理"
-                            className={inputClass}
-                            value={formData.term}
-                            onChange={e => handleChange('term', e.target.value)}
-                            disabled={!!initialData}
-                        />
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                required
+                                placeholder="例如：第一性原理"
+                                className={inputClass}
+                                value={formData.term}
+                                onChange={e => handleChange('term', e.target.value)}
+                                disabled={!!initialData}
+                            />
+                            {!initialData && (
+                                <button
+                                    type="button"
+                                    onClick={generateWithAI}
+                                    disabled={isGenerating || !formData.term}
+                                    className={`px-4 rounded-xl font-bold text-white transition-all shadow-lg flex items-center gap-2 whitespace-nowrap
+                                        ${isGenerating || !formData.term
+                                            ? 'bg-gray-300 cursor-not-allowed'
+                                            : 'bg-gradient-to-r from-pink-500 to-orange-400 hover:shadow-orange-500/30 hover:scale-105 active:scale-95'
+                                        }`}
+                                    title="AI 自动生成内容"
+                                >
+                                    {isGenerating ? (
+                                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                                    ) : (
+                                        <>
+                                            <span className="text-lg">✨</span>
+                                            <span>AI填充</span>
+                                        </>
+                                    )}
+                                </button>
+                            )}
+                        </div>
                         {initialData && <p className="text-xs text-gray-400 mt-1 ml-1">ID (Term) 不可修改</p>}
                     </div>
 

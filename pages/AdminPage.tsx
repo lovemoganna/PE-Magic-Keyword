@@ -1,9 +1,11 @@
-
 import React, { useState } from 'react';
 import { useKeywords } from '../contexts/KeywordContext';
 import { MagicKeyword } from '../types';
 import KeywordForm from '../components/KeywordForm';
-import { Plus, Edit, Trash2, ArrowLeft, Download, RotateCcw, Search, Database, Layers, Brain } from 'lucide-react';
+import GithubSettingsModal from '../components/GithubSettingsModal';
+import { syncToGithub } from '../services/github';
+import { CATEGORY_LABELS, DEPTH_LABELS } from '../data';
+import { Plus, Edit, Trash2, ArrowLeft, Download, RotateCcw, Search, Database, Layers, Brain, Github, CloudUpload } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -12,6 +14,10 @@ const AdminPage: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [currentKeyword, setCurrentKeyword] = useState<MagicKeyword | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+
+    // GitHub State
+    const [isGithubModalOpen, setIsGithubModalOpen] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
 
     const handleCreate = () => {
         setCurrentKeyword(null);
@@ -43,17 +49,49 @@ const AdminPage: React.FC = () => {
         setCurrentKeyword(null);
     };
 
+    const generateFileContent = () => {
+        return `import { MagicKeyword, Category, Depth } from './types';
+
+export const MAGIC_KEYWORDS: MagicKeyword[] = ${JSON.stringify(keywords, null, 4)};
+
+export const CATEGORY_LABELS = ${JSON.stringify(CATEGORY_LABELS, null, 4)};
+
+export const DEPTH_LABELS = ${JSON.stringify(DEPTH_LABELS, null, 4)};
+`;
+    };
+
     const handleExport = () => {
-        const dataStr = JSON.stringify(keywords, null, 4);
-        const exportContent = `// Copy this content into src/data.ts to persist changes\n\nexport const MAGIC_KEYWORDS: MagicKeyword[] = ${dataStr};`;
+        const exportContent = generateFileContent();
         const blob = new Blob([exportContent], { type: 'text/typescript' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'data_export.ts';
+        a.download = 'data.ts';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+    };
+
+    const handleCloudSync = async () => {
+        if (!confirm("确定要将当前关键词数据同步到 GitHub 仓库吗？\n这将覆盖远程仓库中的 data.ts 文件。")) return;
+
+        setIsSyncing(true);
+        try {
+            const content = generateFileContent();
+            await syncToGithub(content);
+            alert("同步成功！Github 仓库已更新。\nGit Pages 构建部署可能需要几分钟。");
+        } catch (error) {
+            console.error(error);
+            // Check if it's likely a config error
+            if (error instanceof Error && (error.message.includes('configuration') || error.message.includes('401'))) {
+                const openSettings = confirm(`同步失败: ${error.message}\n需要检查 GitHub 设置吗？`);
+                if (openSettings) setIsGithubModalOpen(true);
+            } else {
+                alert(`同步失败: ${error instanceof Error ? error.message : '未知错误'}`);
+            }
+        } finally {
+            setIsSyncing(false);
+        }
     };
 
     const filteredKeywords = keywords.filter(k =>
@@ -88,32 +126,61 @@ const AdminPage: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto justify-end">
+                        <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto justify-end items-center">
+                            {/* GitHub Controls */}
+                            <div className="flex items-center gap-2 mr-2 md:mr-4 border-r border-gray-200 dark:border-gray-700 pr-2 md:pr-4">
+                                <button
+                                    onClick={() => setIsGithubModalOpen(true)}
+                                    className="p-2 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                    title="Github 配置"
+                                >
+                                    <Github size={20} />
+                                </button>
+                                <button
+                                    onClick={handleCloudSync}
+                                    disabled={isSyncing}
+                                    className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-xl transition-all border
+                                        ${isSyncing
+                                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-wait'
+                                            : 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-slate-600 hover:bg-indigo-50 dark:hover:bg-slate-600 hover:border-indigo-200'
+                                        }`}
+                                    title="同步至 GitHub 仓库"
+                                >
+                                    <CloudUpload size={18} className={isSyncing ? "animate-bounce" : ""} />
+                                    <span className="hidden md:inline">{isSyncing ? '同步中...' : '同步云端'}</span>
+                                </button>
+                            </div>
+
                             <button
                                 onClick={resetData}
                                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/10 dark:hover:bg-red-900/20 rounded-xl transition-all"
                                 title="重置为默认数据 (清除本地缓存)"
                             >
                                 <RotateCcw size={16} />
-                                <span className="hidden md:inline">重置</span>
+                                <span className="hidden lg:inline">重置</span>
                             </button>
                             <button
                                 onClick={handleExport}
                                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white dark:bg-slate-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600 rounded-xl transition-all shadow-sm"
                             >
                                 <Download size={16} />
-                                导出数据
+                                <span className="hidden lg:inline">导出</span>
                             </button>
                             <button
                                 onClick={handleCreate}
                                 className="flex items-center gap-2 px-5 py-2 text-sm font-bold bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/40 hover:scale-105 transition-all active:scale-95"
                             >
                                 <Plus size={18} />
-                                新增关键词
+                                新增
                             </button>
                         </div>
                     </div>
                 </header>
+
+                <GithubSettingsModal
+                    isOpen={isGithubModalOpen}
+                    onClose={() => setIsGithubModalOpen(false)}
+                />
 
                 {/* Dashboard Stats Grid */}
                 {!isEditing && (
