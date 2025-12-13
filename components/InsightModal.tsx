@@ -18,7 +18,7 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
     // 简单的解析逻辑：按行分割，识别表格块和其他块
     const lines = content.split('\n');
     const blocks: React.ReactNode[] = [];
-    
+
     let inTable = false;
     let tableHeader: string[] = [];
     let tableRows: string[][] = [];
@@ -91,7 +91,7 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
             flushList(key); // 表格开始前清空列表
             inTable = true;
             const cells = trimmed.split('|').filter((_, i, arr) => i !== 0 && i !== arr.length - 1).map(c => c.trim());
-            
+
             // 忽略分隔行 |---|---|
             if (trimmed.includes('---')) return;
 
@@ -128,9 +128,9 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
 
         // 处理代码块 (简单处理)
         if (trimmed.startsWith('```')) {
-             flushList(key);
-             // 我们这里做一个非常简化的处理，实际应该收集多行
-             return; 
+            flushList(key);
+            // 我们这里做一个非常简化的处理，实际应该收集多行
+            return;
         }
 
         // 处理普通文本
@@ -214,8 +214,8 @@ ${isFusion ? '这是一个融合概念，请重点分析它们结合后的涌现
         setInsight(null);
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            
+            const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+
             // 使用 Flash 模型以获得快速响应，它足够处理这种结构化任务
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
@@ -235,10 +235,10 @@ ${isFusion ? '这是一个融合概念，请重点分析它们结合后的涌现
     };
 
     const handleCopy = () => {
-        const text = isFusion 
+        const text = isFusion
             ? `融合概念: ${keywords.map(k => k.term).join(', ')}\n\n${insight || ''}`
             : `${mainKeyword.term}\n${mainKeyword.description}\n\n${insight || ''}`;
-        
+
         navigator.clipboard.writeText(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -246,14 +246,14 @@ ${isFusion ? '这是一个融合概念，请重点分析它们结合后的涌现
 
     return (
         <AnimatePresence>
-            <motion.div 
+            <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
                 onClick={onClose}
             >
-                <motion.div 
+                <motion.div
                     initial={{ scale: 0.95, opacity: 0, y: 20 }}
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -289,7 +289,7 @@ ${isFusion ? '这是一个融合概念，请重点分析它们结合后的涌现
                             {keywords.map((kw, idx) => (
                                 <div key={idx} className={`space-y-4 ${isFusion ? 'p-6 rounded-xl bg-gray-50 dark:bg-slate-700/50' : ''}`}>
                                     {isFusion && <h3 className="font-bold text-lg text-primary">{kw.term}</h3>}
-                                    
+
                                     <div>
                                         <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2">
                                             <Lightbulb size={14} /> 核心定义
@@ -300,7 +300,7 @@ ${isFusion ? '这是一个融合概念，请重点分析它们结合后的涌现
                                     </div>
 
                                     <div className="flex flex-wrap gap-2">
-                                         {kw.crossDomains.map(d => (
+                                        {kw.crossDomains.map(d => (
                                             <span key={d} className="px-2 py-1 bg-gray-100 dark:bg-slate-700 rounded text-xs text-gray-500 dark:text-gray-400">
                                                 {d}
                                             </span>
@@ -319,11 +319,11 @@ ${isFusion ? '这是一个融合概念，请重点分析它们结合后的涌现
                                 </h3>
                                 {insight && (
                                     <div className="flex gap-2">
-                                        <button 
+                                        <button
                                             onClick={handleCopy}
                                             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
                                         >
-                                            {copied ? <span className="text-green-500">已复制</span> : <><Copy size={14}/> 复制Markdown</>}
+                                            {copied ? <span className="text-green-500">已复制</span> : <><Copy size={14} /> 复制Markdown</>}
                                         </button>
                                     </div>
                                 )}
@@ -340,7 +340,7 @@ ${isFusion ? '这是一个融合概念，请重点分析它们结合后的涌现
                                             按照MECE（完全穷尽，相互独立）原则，将此概念拆解为标准化的知识结构表。
                                             包含：核心目标、前置依赖、边界限定、正反例对比及三级要素拆解，并生成即插即用的Prompt。
                                         </p>
-                                        <button 
+                                        <button
                                             onClick={generateAIInsight}
                                             className="inline-flex items-center gap-2 px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all transform hover:scale-105 shadow-xl shadow-indigo-200 dark:shadow-none"
                                         >
@@ -366,7 +366,7 @@ ${isFusion ? '这是一个融合概念，请重点分析它们结合后的涌现
                             )}
 
                             {insight && (
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     className="bg-white dark:bg-slate-800 rounded-xl overflow-hidden p-6"
