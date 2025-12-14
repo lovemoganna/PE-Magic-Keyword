@@ -214,7 +214,11 @@ ${isFusion ? '这是一个融合概念，请重点分析它们结合后的涌现
         setInsight(null);
 
         try {
-            const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+            const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+            if (!apiKey) {
+                throw new Error('API密钥未配置。请在.env.local中设置VITE_GEMINI_API_KEY');
+            }
+            const ai = new GoogleGenAI({ apiKey });
 
             // 使用 Flash 模型以获得快速响应，它足够处理这种结构化任务
             const response = await ai.models.generateContent({

@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App'
+import AppRouter from './AppRouter'
 
 // 添加错误边界
 class ErrorBoundary extends React.Component {
@@ -46,7 +46,7 @@ const root = ReactDOM.createRoot(
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <AppRouter />
     </ErrorBoundary>
   </React.StrictMode>
 )
